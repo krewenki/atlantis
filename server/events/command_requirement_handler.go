@@ -20,9 +20,13 @@ type CommandRequirementHandler interface {
 	ValidateImportProject(repoDir string, ctx command.ProjectContext) (string, error)
 }
 
+type UndivergedProjectImpactResolver interface {
+	HasUndivergedImpact(ctx command.ProjectContext, repoDir string, workingDir WorkingDir) (handled bool, impacted bool, err error)
+}
+
 type DefaultCommandRequirementHandler struct {
 	WorkingDir            WorkingDir
-	ProjectImpactResolver *undivergedProjectImpactResolver
+	ProjectImpactResolver UndivergedProjectImpactResolver
 }
 
 func (a *DefaultCommandRequirementHandler) ValidateProjectDependencies(ctx command.ProjectContext) (failure string, err error) {
@@ -92,19 +96,12 @@ func (a *DefaultCommandRequirementHandler) hasUndivergedImpact(repoDir string, c
 		return a.WorkingDir.HasDiverged(ctx.Log, repoDir, ctx.RepoRelDir, ctx.AutoplanWhenModified, ctx.Pull), nil
 	}
 
-	target, err := a.ProjectImpactResolver.resolveTarget(ctx, repoDir)
+	handled, impacted, err := a.ProjectImpactResolver.HasUndivergedImpact(ctx, repoDir, a.WorkingDir)
 	if err != nil {
 		return false, err
 	}
-
-	if target.mode == undivergedProjectImpactModeNone {
+	if !handled {
 		return a.WorkingDir.HasDiverged(ctx.Log, repoDir, ctx.RepoRelDir, ctx.AutoplanWhenModified, ctx.Pull), nil
 	}
-
-	divergedFiles, err := a.WorkingDir.GetDivergedFiles(ctx.Log, repoDir, ctx.Pull)
-	if err != nil {
-		return false, err
-	}
-
-	return a.ProjectImpactResolver.impactedByModifiedFiles(ctx, repoDir, target, divergedFiles)
+	return impacted, nil
 }

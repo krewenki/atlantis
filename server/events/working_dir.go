@@ -370,13 +370,21 @@ func (w *FileWorkspace) hasDivergedForPatterns(logger logging.SimpleLogging, clo
 	return false
 }
 
+func divergedFilesCommandError(action string, err error, output []byte) error {
+	trimmedOutput := strings.TrimSpace(string(output))
+	if trimmedOutput == "" {
+		return fmt.Errorf("%s: %w", action, err)
+	}
+	return fmt.Errorf("%s: %w: %s", action, err, trimmedOutput)
+}
+
 func (w *FileWorkspace) getDivergedFiles(logger logging.SimpleLogging, cloneDir string, pullRequest models.PullRequest) ([]string, error) {
 	logger.Debug("GetDivergedFiles: running git fetch")
 	fetchCmd := exec.Command("git", "fetch")
 	fetchCmd.Dir = cloneDir
 	outputFetch, err := fetchCmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("fetching repo: %s", string(outputFetch))
+		return nil, divergedFilesCommandError("fetching repo", err, outputFetch)
 	}
 
 	remoteRef := fmt.Sprintf("origin/%s", pullRequest.BaseBranch)
@@ -387,7 +395,7 @@ func (w *FileWorkspace) getDivergedFiles(logger logging.SimpleLogging, cloneDir 
 	changedFilesCmd.Dir = cloneDir
 	outputChangedFiles, err := changedFilesCmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("getting changed files: %s", string(outputChangedFiles))
+		return nil, divergedFilesCommandError("getting changed files", err, outputChangedFiles)
 	}
 
 	changedFiles := strings.Split(strings.TrimSpace(string(outputChangedFiles)), "\n")

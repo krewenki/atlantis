@@ -21,9 +21,8 @@ const (
 )
 
 type undivergedProjectImpactTarget struct {
-	mode       undivergedProjectImpactMode
-	repoCfg    valid.RepoCfg
-	hasRepoCfg bool
+	mode    undivergedProjectImpactMode
+	repoCfg valid.RepoCfg
 }
 
 type undivergedProjectImpactResolver struct {
@@ -55,6 +54,32 @@ func NewUndivergedProjectImpactResolver(
 	}
 }
 
+func (r *undivergedProjectImpactResolver) HasUndivergedImpact(
+	ctx command.ProjectContext,
+	repoDir string,
+	workingDir WorkingDir,
+) (handled bool, impacted bool, err error) {
+	target, err := r.resolveTarget(ctx, repoDir)
+	if err != nil {
+		return false, false, err
+	}
+	if target.mode == undivergedProjectImpactModeNone {
+		return false, false, nil
+	}
+
+	divergedFiles, err := workingDir.GetDivergedFiles(ctx.Log, repoDir, ctx.Pull)
+	if err != nil {
+		return true, false, err
+	}
+
+	impacted, err = r.impactedByModifiedFiles(ctx, repoDir, target, divergedFiles)
+	if err != nil {
+		return true, false, err
+	}
+
+	return true, impacted, nil
+}
+
 func (r *undivergedProjectImpactResolver) resolveTarget(ctx command.ProjectContext, repoDir string) (undivergedProjectImpactTarget, error) {
 	if r == nil {
 		return undivergedProjectImpactTarget{}, nil
@@ -77,25 +102,22 @@ func (r *undivergedProjectImpactResolver) resolveTarget(ctx command.ProjectConte
 	for _, project := range repoCfg.Projects {
 		if matchesConfiguredProjectContext(project, ctx) {
 			return undivergedProjectImpactTarget{
-				mode:       undivergedProjectImpactModeConfigured,
-				repoCfg:    repoCfg,
-				hasRepoCfg: hasRepoCfg,
+				mode:    undivergedProjectImpactModeConfigured,
+				repoCfg: repoCfg,
 			}, nil
 		}
 	}
 
 	if r.shouldUseAutoDiscoveredTargeting(ctx, repoCfg) {
 		return undivergedProjectImpactTarget{
-			mode:       undivergedProjectImpactModeAutoDiscovered,
-			repoCfg:    repoCfg,
-			hasRepoCfg: hasRepoCfg,
+			mode:    undivergedProjectImpactModeAutoDiscovered,
+			repoCfg: repoCfg,
 		}, nil
 	}
 
 	return undivergedProjectImpactTarget{
-		mode:       undivergedProjectImpactModeNone,
-		repoCfg:    repoCfg,
-		hasRepoCfg: hasRepoCfg,
+		mode:    undivergedProjectImpactModeNone,
+		repoCfg: repoCfg,
 	}, nil
 }
 
