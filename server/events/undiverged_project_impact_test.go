@@ -129,6 +129,38 @@ func TestDefaultCommandRequirementHandler_TargetedUndivergedPassesForUnrelatedCo
 	Equals(t, "", failure)
 }
 
+func TestDefaultCommandRequirementHandler_TargetedUndivergedFallsBackToFullCheckOnResolverError(t *testing.T) {
+	RegisterMockTestingT(t)
+
+	repoDir := configuredProjectRepo(t)
+	workingDir := NewMockWorkingDir()
+	When(workingDir.HasDiverged(Any[logging.SimpleLogging](), Eq(repoDir), Eq("project1"), Eq([]string{"modules/database/**"}), Any[models.PullRequest]())).ThenReturn(true)
+	When(workingDir.HasDiverged(Any[logging.SimpleLogging](), Eq(repoDir), Eq("project1"), Eq([]string(nil)), Any[models.PullRequest]())).ThenReturn(false)
+
+	handler := &DefaultCommandRequirementHandler{
+		WorkingDir:            workingDir,
+		ProjectImpactResolver: stubUndivergedProjectImpactResolver{err: os.ErrInvalid},
+	}
+
+	ctx := newTestUndivergedProjectContext(t, "project1")
+	ctx.ApplyRequirements = []string{raw.UnDivergedRequirement}
+	ctx.AutoplanWhenModified = []string{"modules/database/**"}
+
+	failure, err := handler.ValidateApplyProject(repoDir, ctx)
+	Ok(t, err)
+	Equals(t, "", failure)
+}
+
+type stubUndivergedProjectImpactResolver struct {
+	handled  bool
+	impacted bool
+	err      error
+}
+
+func (s stubUndivergedProjectImpactResolver) HasUndivergedImpact(command.ProjectContext, string, WorkingDir) (bool, bool, error) {
+	return s.handled, s.impacted, s.err
+}
+
 func configuredProjectRepo(t *testing.T) string {
 	t.Helper()
 

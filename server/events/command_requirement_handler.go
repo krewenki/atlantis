@@ -79,8 +79,8 @@ func (a *DefaultCommandRequirementHandler) validateCommandRequirement(repoDir st
 		case raw.UnDivergedRequirement:
 			diverged, err := a.hasUndivergedImpact(repoDir, ctx)
 			if err != nil {
-				ctx.Log.Warn("evaluating undiverged requirement has failed: %s", err)
-				return fmt.Sprintf("Default branch must be rebased onto pull request before running %s.", cmd), nil
+				ctx.Log.Warn("evaluating undiverged requirement has failed, falling back to full divergence check: %s", err)
+				diverged = a.WorkingDir.HasDiverged(ctx.Log, repoDir, ctx.RepoRelDir, nil, ctx.Pull)
 			}
 			if diverged {
 				return fmt.Sprintf("Default branch must be rebased onto pull request before running %s.", cmd), nil
