@@ -269,9 +269,9 @@ func (w *FileWorkspace) HasDiverged(logger logging.SimpleLogging, cloneDir strin
 }
 
 func (w *FileWorkspace) GetDivergedFiles(logger logging.SimpleLogging, cloneDir string, pullRequest models.PullRequest) ([]string, error) {
-	logger.Debug("getting diverged files in %s", cloneDir)
+	logger.Debug("GetDivergedFiles: getting diverged files in %s", cloneDir)
 	if !w.CheckoutMerge {
-		logger.Debug("CheckoutMerge is false, skipping diverged file lookup")
+		logger.Debug("GetDivergedFiles: CheckoutMerge is false, skipping diverged file lookup")
 		return nil, nil
 	}
 
@@ -371,7 +371,7 @@ func (w *FileWorkspace) hasDivergedForPatterns(logger logging.SimpleLogging, clo
 }
 
 func (w *FileWorkspace) getDivergedFiles(logger logging.SimpleLogging, cloneDir string, pullRequest models.PullRequest) ([]string, error) {
-	logger.Debug("HasDiverged: running git fetch")
+	logger.Debug("GetDivergedFiles: running git fetch")
 	fetchCmd := exec.Command("git", "fetch")
 	fetchCmd.Dir = cloneDir
 	outputFetch, err := fetchCmd.CombinedOutput()
@@ -382,7 +382,7 @@ func (w *FileWorkspace) getDivergedFiles(logger logging.SimpleLogging, cloneDir 
 	remoteRef := fmt.Sprintf("origin/%s", pullRequest.BaseBranch)
 	revisionRange := fmt.Sprintf("HEAD..%s", remoteRef)
 
-	logger.Debug("HasDiverged: getting changed files in %s", revisionRange)
+	logger.Debug("GetDivergedFiles: getting changed files in %s", revisionRange)
 	changedFilesCmd := exec.Command("git", "log", revisionRange, "--name-only", "--format=") //nolint:gosec // remoteRef is from pullRequest.BaseBranch, a controlled VCS branch name
 	changedFilesCmd.Dir = cloneDir
 	outputChangedFiles, err := changedFilesCmd.CombinedOutput()
